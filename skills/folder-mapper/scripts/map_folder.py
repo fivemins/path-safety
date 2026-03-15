@@ -1,0 +1,372 @@
+#!/usr/bin/env python3
+"""
+文件夹映射工具 - 安全增强版（用户可配置）
+"""
+import os
+import sys
+import json
+import stat
+from pathlib import Path
+
+WORKSPACE = Path.home() / ".openclaw" / "workspace"
+MOUNT_DIR = WORKSPACE / "mnt"
+META_FILE = WORKSPACE / "folder_mapping.json"
+CONFIG_FILE = WORKSPACE / "folder_mapper_config.json"
+
+# 默认禁止的系统目录（不可修改）
+DEFAULT_FORBIDDEN = [
+    "/",
+    "/bin",
+    "/boot",
+    "/dev",
+    "/etc",
+    "/lib",
+    "/lib64",
+    "/proc",
+    "/root",
+    "/sbin",
+    "/sys",
+    "/usr",
+    "/var",
+]
+
+
+def load_config() -> dict:
+    """加载用户配置"""
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    return {"forbidden_paths": [], "sensitive_paths": []}
+
+
+def save_config(config: dict):
+    """保存用户配置"""
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=2)
+
+
+def add_forbidden(path: str) -> dict:
+    """添加禁止访问的目录"""
+    config = load_config()
+    path = str(Path(path).expanduser().resolve())
+    
+    if path not in config.get("forbidden_paths", []):
+        config.setdefault("forbidden_paths", []).append(path)
+        save_config(config)
+        return {"success": True, "message": f"已添加禁止目录: {path}"}
+    return {"success": False, "message": "目录已在黑名单中"}
+
+
+def remove_forbidden(path: str) -> dict:
+    """移除禁止访问的目录"""
+    config = load_config()
+    path = str(Path(path).expanduser().resolve())
+    
+    if path in config.get("forbidden_paths", []):
+        config["forbidden_paths"].remove(path)
+        save_config(config)
+        return {"success": True, "message": f"已移除禁止目录: {path}"}
+    return {"success": False, "message": "目录不在黑名单中"}
+
+
+def add_sensitive(path: str) -> dict:
+    """添加敏感目录（需要二次确认）"""
+    config = load_config()
+    path = str(Path(path).expanduser().resolve())
+    
+    if path not in config.get("sensitive_paths", []):
+        config.setdefault("sensitive_paths", []).append(path)
+        save_config(config)
+        return {"success": True, "message": f"已添加敏感目录: {path}"}
+    return {"success": False, "message": "目录已在敏感列表中"}
+
+
+def remove_sensitive(path: str) -> dict:
+    """移除敏感目录"""
+    config = load_config()
+    path = str(Path(path).expanduser().resolve())
+    
+    if path in config.get("sensitive_paths", []):
+        config["sensitive_paths"].remove(path)
+        save_config(config)
+        return {"success": True, "message": f"已移除敏感目录: {path}"}
+    return {"success": False, "message": "目录不在敏感列表中"}
+
+
+def show_config():
+    """显示当前配置"""
+    config = load_config()
+    print("\n📋 当前配置:")
+    print("-" * 50)
+    print(f"系统默认禁止目录 ({len(DEFAULT_FORBIDDEN)}): {', '.join(DEFAULT_FORBIDDEN[:5])}...")
+    print(f"\n用户禁止目录 ({len(config.get('forbidden_paths', []))}):")
+    for p in config.get("forbidden_paths", []):
+        print(f"  🚫 {p}")
+    print(f"\n敏感目录 ({len(config.get('sensitive_paths', []))}):")
+    for p in config.get("sensitive_paths", []):
+        print(f"  ⚠️  {p}")
+    print("-" * 50)
+
+
+def ensure_mount_dir():
+    MOUNT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def load_mappings() -> dict:
+    if META_FILE.exists():
+        with open(META_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+
+def save_mappings(mappings: dict):
+    with open(META_FILE, 'w') as f:
+        json.dump(mappings, f, indent=2)
+
+
+def is_path_allowed(path: str) -> tuple:
+    """
+    检查路径是否允许映射
+    返回: (允许, 原因)
+    """
+    p = Path(path).expanduser().resolve()
+    config = load_config()
+    
+    # 检查默认黑名单
+    for forbidden in DEFAULT_FORBIDDEN:
+        if str(p) == forbidden or str(p).startswith(forbidden + "/"):
+            return False, f"禁止映射系统目录: {forbidden}"
+    
+    # 检查用户黑名单
+    for forbidden in config.get("forbidden_paths", []):
+        if str(p) == forbidden or str(p).startswith(forbidden + "/"):
+            return False, f"用户禁止映射: {forbidden}"
+    
+    # 检查是否敏感
+    is_sensitive = any(str(p).startswith(s) for s in config.get("sensitive_paths", []))
+    
+    return True, "sensitive" if is_sensitive else "ok"
+
+
+def get_unique_name(folder_path: Path) -> str:
+    ensure_mount_dir()
+    base_name = folder_path.name
+    name = base_name
+    counter = 1
+    while (MOUNT_DIR / name).exists():
+        name = f"{base_name}_{counter}"
+        counter += 1
+    return name
+
+
+def mount_folder(folder_path: str, read_only: bool = True) -> dict:
+    path = Path(folder_path).expanduser().resolve()
+    
+    if not path.exists():
+        return {"success": False, "error": f"文件夹不存在: {path}"}
+    
+    if not path.is_dir():
+        return {"success": False, "error": f"不是有效文件夹: {path}"}
+    
+    allowed, reason = is_path_allowed(str(path))
+    if not allowed:
+        return {"success": False, "error": reason}
+    
+    sensitive_warning = ""
+    if reason == "sensitive":
+        sensitive_warning = f"\n⚠️ 警告: 该目录需要二次确认！"
+    
+    link_name = get_unique_name(path)
+    link_path = MOUNT_DIR / link_name
+    
+    try:
+        os.symlink(path, link_path)
+        
+        mappings = load_mappings()
+        mappings[link_name] = {
+            "source": str(path),
+            "link": str(link_path),
+            "read_only": read_only,
+            "sensitive": reason == "sensitive",
+        }
+        save_mappings(mappings)
+        
+        return {
+            "success": True,
+            "link_name": link_name,
+            "link_path": str(link_path),
+            "access_path": f"mnt/{link_name}",
+            "source": str(path),
+            "warning": sensitive_warning,
+            "message": f"✅ 已映射到 mnt/{link_name} (只读模式){sensitive_warning}\n⚠️ 警告：此为符号链接，删除/修改会直接影响原文件！"
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def unmount_folder(link_name: str) -> dict:
+    ensure_mount_dir()
+    link_path = MOUNT_DIR / link_name
+    
+    if not link_path.exists():
+        return {"success": False, "error": f"映射不存在: {link_name}"}
+    
+    try:
+        if link_path.is_symlink():
+            link_path.unlink()
+        else:
+            import shutil
+            shutil.rmtree(link_path)
+        
+        mappings = load_mappings()
+        if link_name in mappings:
+            del mappings[link_name]
+            save_mappings(mappings)
+        
+        return {"success": True, "message": f"✅ 已解除映射: {link_name}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def list_mappings() -> dict:
+    ensure_mount_dir()
+    mappings = load_mappings()
+    active = []
+    
+    for name, info in mappings.items():
+        link_path = Path(info["link"])
+        if link_path.exists():
+            active.append({**info, "name": name})
+        else:
+            del mappings[name]
+    
+    save_mappings(mappings)
+    return {"active": active, "count": len(active)}
+
+
+def check_dangerous_operation(path: str, operation: str) -> tuple:
+    mappings = load_mappings()
+    
+    for name, info in mappings.items():
+        source = info.get("source", "")
+        sensitive = info.get("sensitive", False)
+        
+        if source in path or path.startswith(source):
+            if sensitive:
+                return True, f"⚠️ 敏感目录操作: {operation} {path}\n需要二次确认！"
+            if operation in ["delete", "rm", "rm -r"]:
+                return True, f"⚠️ 删除操作: {path}\n这是映射目录，删除将直接影响原文件！请确认。"
+    
+    return False, ""
+
+
+def clean_all() -> dict:
+    ensure_mount_dir()
+    mappings = load_mappings()
+    
+    for name in list(mappings.keys()):
+        link_path = MOUNT_DIR / name
+        try:
+            if link_path.exists():
+                if link_path.is_symlink():
+                    link_path.unlink()
+                else:
+                    import shutil
+                    shutil.rmtree(link_path)
+        except:
+            pass
+    
+    save_mappings({})
+    return {"success": True, "message": "已清理所有映射"}
+
+
+def show_usage():
+    print("""
+📁 文件夹映射工具 (用户可配置版)
+
+用法:
+  python3 map_folder.py mount <路径>      映射文件夹（只读）
+  python3 map_folder.py unmount <名称>    取消映射
+  python3 map_folder.py list             查看当前映射
+  python3 map_folder.py clean            清理所有映射
+  python3 map_folder.py config           显示配置
+  python3 map_folder.py forbid <路径>    添加禁止目录
+  python3 map_folder.py allow <路径>     移除禁止目录
+  python3 map_folder.py sensitive <路径> 添加敏感目录
+  python3 map_folder.py desensitive <路径> 移除敏感目录
+
+配置说明:
+  - 禁止目录: 绝对不能映射（系统目录自动包含）
+  - 敏感目录: 映射后操作需要二次确认
+""")
+
+
+def main():
+    if len(sys.argv) < 2:
+        show_usage()
+        return
+    
+    command = sys.argv[1].lower()
+    
+    if command == "mount":
+        if len(sys.argv) < 3:
+            print("用法: python3 map_folder.py mount <文件夹路径>")
+            sys.exit(1)
+        result = mount_folder(sys.argv[2])
+        print(result.get("message", result.get("error", "")))
+        
+    elif command == "unmount":
+        if len(sys.argv) < 3:
+            print("用法: python3 map_folder.py unmount <映射名>")
+            sys.exit(1)
+        result = unmount_folder(sys.argv[2])
+        print(result.get("message", result.get("error", "")))
+        
+    elif command == "list":
+        result = list_mappings()
+        print(f"\n📁 当前映射 ({result['count']} 个):")
+        for m in result['active']:
+            print(f"  {m['name']} -> {m['source']}")
+        
+    elif command == "config":
+        show_config()
+        
+    elif command == "forbid":
+        if len(sys.argv) < 3:
+            print("用法: python3 map_folder.py forbid <路径>")
+            sys.exit(1)
+        result = add_forbidden(sys.argv[2])
+        print(result["message"])
+        
+    elif command == "allow":
+        if len(sys.argv) < 3:
+            print("用法: python3 map_folder.py allow <路径>")
+            sys.exit(1)
+        result = remove_forbidden(sys.argv[2])
+        print(result["message"])
+        
+    elif command == "sensitive":
+        if len(sys.argv) < 3:
+            print("用法: python3 map_folder.py sensitive <路径>")
+            sys.exit(1)
+        result = add_sensitive(sys.argv[2])
+        print(result["message"])
+        
+    elif command == "desensitive":
+        if len(sys.argv) < 3:
+            print("用法: python3 map_folder.py desensitive <路径>")
+            sys.exit(1)
+        result = remove_sensitive(sys.argv[2])
+        print(result["message"])
+        
+    elif command == "clean":
+        result = clean_all()
+        print(result["message"])
+        
+    else:
+        show_usage()
+
+
+if __name__ == "__main__":
+    main()
