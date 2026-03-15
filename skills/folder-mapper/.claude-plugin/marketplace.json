@@ -1,0 +1,18 @@
+{
+    "name": "folder-mapper",
+    "owner": {
+        "name": "fivemins",
+        "email": ""
+    },
+    "metadata": {
+        "description": "Temporary folder mapping tool with security features for AI agents",
+        "version": "1.0.0"
+    },
+    "plugins": [
+        {
+            "name": "folder-mapper",
+            "description": "Map external folders to workspace temporarily with security protection. Supports user-configurable forbidden/sensitive paths.",
+            "source": "./skills/folder-mapper"
+        }
+    ]
+}
