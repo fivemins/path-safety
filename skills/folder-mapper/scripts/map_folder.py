@@ -29,31 +29,13 @@ DEFAULT_FORBIDDEN = [
     "/sys",
     "/usr",
     "/var",
-    # Windows 盘符根目录（WSL 环境常见）
-    "/mnt/c",
-    "/mnt/d",
-    "/mnt/e",
-    "/mnt/f",
-    "/mnt/g",
-    "/mnt/h",
-    "/mnt/w",
-    "/mnt/x",
-    "/mnt/y",
-    "/mnt/z",
-    # Windows 风格路径（WSL 中可能访问）
-    "/c",
-    "/d",
-    "/e",
-    "/f",
-    "/g",
-    "/h",
-    "/w",
-    "/x",
-    "/y",
-    "/z",
 ]
 
-# Windows 盘符根目录检测（用于检测 Windows 原生路径如 C:\）
+# 添加所有可能的盘符挂载点（/mnt/a 到 /mnt/z）
+for letter in 'abcdefghijklmnopqrstuvwxyz':
+    DEFAULT_FORBIDDEN.append(f"/mnt/{letter}")
+
+# Windows 盘符根目录（检测用）
 WINDOWS_DRIVE_LETTERS = [chr(c) for c in range(ord('A'), ord('Z') + 1)]
 
 
