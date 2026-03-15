@@ -6,7 +6,8 @@ Temporary folder mapping tool with security features for AI agents.
 
 - 🔗 **Mount external folders** into workspace via symlinks
 - 🔒 **Read-only mode** by default
-- 🛡️ **System directory protection** - blocks dangerous paths
+- 🛡️ **System directory protection** - blocks `/`, `/bin`, `/etc`, etc.
+- 🚫 **Drive root protection** - blocks all drive mount points (`/mnt/c`, `/mnt/d`, etc.)
 - ⚙️ **User-configurable** forbidden and sensitive paths
 - ⚠️ **Confirmation prompts** for sensitive operations
 
@@ -51,10 +52,13 @@ python3 scripts/map_folder.py config
 
 ## Security
 
-- Default forbidden: `/`, `/bin`, `/etc`, `/proc`, etc.
-- User can add custom forbidden/sensitive paths
-- Read-only mapping by default
-- Confirmation required for delete/modify operations on sensitive directories
+### Default Forbidden (Cannot be modified)
+- System directories: `/`, `/bin`, `/etc`, `/proc`, etc.
+- All drive mount points: `/mnt/a` to `/mnt/z`
+
+### User Configurable
+- Custom forbidden paths
+- Sensitive paths (require confirmation for delete/modify)
 
 ## License
 
