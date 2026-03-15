@@ -14,6 +14,7 @@ META_FILE = WORKSPACE / "folder_mapping.json"
 CONFIG_FILE = WORKSPACE / "folder_mapper_config.json"
 
 # 默认禁止的系统目录（不可修改）
+# Linux 系统目录
 DEFAULT_FORBIDDEN = [
     "/",
     "/bin",
@@ -28,7 +29,32 @@ DEFAULT_FORBIDDEN = [
     "/sys",
     "/usr",
     "/var",
+    # Windows 盘符根目录（WSL 环境常见）
+    "/mnt/c",
+    "/mnt/d",
+    "/mnt/e",
+    "/mnt/f",
+    "/mnt/g",
+    "/mnt/h",
+    "/mnt/w",
+    "/mnt/x",
+    "/mnt/y",
+    "/mnt/z",
+    # Windows 风格路径（WSL 中可能访问）
+    "/c",
+    "/d",
+    "/e",
+    "/f",
+    "/g",
+    "/h",
+    "/w",
+    "/x",
+    "/y",
+    "/z",
 ]
+
+# Windows 盘符根目录检测（用于检测 Windows 原生路径如 C:\）
+WINDOWS_DRIVE_LETTERS = [chr(c) for c in range(ord('A'), ord('Z') + 1)]
 
 
 def load_config() -> dict:
@@ -131,19 +157,35 @@ def is_path_allowed(path: str) -> tuple:
     """
     p = Path(path).expanduser().resolve()
     config = load_config()
+    path_str = str(p)
+    
+    # 检查 Windows 盘符根目录（如 C:\, D:\）
+    import re
+    # 检测 Windows 风格路径：C:\, D:\ 等
+    if re.match(r'^[A-Za-z]:\\?$', path_str):
+        return False, f"禁止映射盘符根目录: {path_str}"
+    
+    # 检查 Windows 盘符下的根目录（如 C:\Users, D:\Program Files）
+    if re.match(r'^[A-Za-z]:\\', path_str):
+        # 提取盘符
+        drive = path_str[0].upper()
+        root_path = f"/mnt/{drive.lower()}"
+        # 检查是否映射到盘符根目录
+        if path_str[3:] == '' or path_str[3:] == '\\':
+            return False, f"禁止映射盘符根目录: {path_str}"
     
     # 检查默认黑名单
     for forbidden in DEFAULT_FORBIDDEN:
-        if str(p) == forbidden or str(p).startswith(forbidden + "/"):
+        if path_str == forbidden or path_str.startswith(forbidden + "/"):
             return False, f"禁止映射系统目录: {forbidden}"
     
     # 检查用户黑名单
     for forbidden in config.get("forbidden_paths", []):
-        if str(p) == forbidden or str(p).startswith(forbidden + "/"):
+        if path_str == forbidden or path_str.startswith(forbidden + "/"):
             return False, f"用户禁止映射: {forbidden}"
     
     # 检查是否敏感
-    is_sensitive = any(str(p).startswith(s) for s in config.get("sensitive_paths", []))
+    is_sensitive = any(path_str.startswith(s) for s in config.get("sensitive_paths", []))
     
     return True, "sensitive" if is_sensitive else "ok"
 
