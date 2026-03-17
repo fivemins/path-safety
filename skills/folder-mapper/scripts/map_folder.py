@@ -461,19 +461,25 @@ def list_mappings() -> dict:
     mappings = load_mappings()
     config = load_config()
     has_anomaly = False
+    anomaly_items: list[str] = []
     
     # 如果映射文件为空/损坏，尝试从实际符号链接恢复
     if not mappings and MOUNT_DIR.exists():
         for item in MOUNT_DIR.iterdir():
             if item.is_symlink():
-                target = item.resolve()
-                if target.exists() and target.is_dir():
-                    # 从实际符号链接恢复映射记录
-                    mappings[item.name] = {
-                        "source": str(target),
-                        "link": str(item),
-                        "sensitive": classify_path(str(target), config)["is_sensitive"],
-                    }
+                try:
+                    target = item.resolve()
+                    if target.exists() and target.is_dir():
+                        # 从实际符号链接恢复映射记录
+                        mappings[item.name] = {
+                            "source": str(target),
+                            "link": str(item),
+                            "sensitive": classify_path(str(target), config)["is_sensitive"],
+                        }
+                except (OSError, RuntimeError):
+                    has_anomaly = True
+                    anomaly_items.append(item.name)
+                    continue
         if mappings:
             save_mappings(mappings)
     
@@ -503,11 +509,17 @@ def list_mappings() -> dict:
             has_anomaly = True
     
     save_mappings(mappings)
+    warning = ""
+    if has_anomaly:
+        warning = "发现异常挂载条目，请人工确认"
+        if anomaly_items:
+            warning = f"{warning}: {', '.join(sorted(set(anomaly_items)))}"
+
     return {
         "active": active,
         "count": len(active),
         "has_anomaly": has_anomaly,
-        "warning": "发现异常挂载条目，请人工确认" if has_anomaly else "",
+        "warning": warning,
     }
 
 
