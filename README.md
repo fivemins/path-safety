@@ -1,4 +1,4 @@
-# folder-mapper
+# path-safety
 
 [English](#english) | [中文](#中文)
 
@@ -6,7 +6,7 @@
 
 ## 中文
 
-**folder-mapper** 是一个面向 AI Agent 的受控目录接入工具。  
+**path-safety** 是一个面向 AI Agent 的受控目录接入工具。  
 它不是为了替代 WSL 自带的 `/mnt/c`、`/mnt/d` 盘符访问，而是为了在 Agent 工作流中提供：
 
 - **统一的外部目录入口**
@@ -14,7 +14,7 @@
 - **敏感目录标记与风险检测**
 - **映射关系的可管理性与可追踪性**
 
-换句话说，`folder-mapper` 的核心价值不在“让目录变得可访问”，而在“让 AI 以更可控的方式访问目录”。
+换句话说，`path-safety` 的核心价值不在“让目录变得可访问”，而在“让 AI 以更可控的方式访问目录”。
 
 ### 它适合解决什么问题？
 
@@ -25,7 +25,7 @@
 - 调用方很难在执行前做风险判断
 - 不清楚当前到底映射了哪些目录
 
-`folder-mapper` 提供了一层轻量治理机制：
+`path-safety` 提供了一层轻量治理机制：
 
 - 将外部目录映射到工作区统一入口
 - 禁止系统目录、盘符根目录等危险路径
@@ -52,7 +52,7 @@
 - `/mnt/d/...`
 
 那么通常 **无需** 使用本工具。  
-这些路径本身已经可直接访问，`folder-mapper` 不会提升底层访问能力。
+这些路径本身已经可直接访问，`path-safety` 不会提升底层访问能力。
 
 因此，本工具更适合“**需要治理、约束、统一入口和风险控制**”的场景，而不是单纯的目录访问。
 
@@ -70,7 +70,7 @@
 ### 安装
 
 ```bash
-npx skills add fivemins/folder-mapper
+npx skills add fivemins/path-safety
 ```
 
 ### 使用方法
@@ -79,49 +79,49 @@ npx skills add fivemins/folder-mapper
 
 ```bash
 # 最小自检：验证脚本路径
-python3 skills/folder-mapper/scripts/map_folder.py list
+python3 skills/path-safety/scripts/map_folder.py list
 
 # 映射文件夹
-python3 skills/folder-mapper/scripts/map_folder.py mount "/path/to/folder"
+python3 skills/path-safety/scripts/map_folder.py mount "/path/to/folder"
 
 # 查看当前映射
-python3 skills/folder-mapper/scripts/map_folder.py list
+python3 skills/path-safety/scripts/map_folder.py list
 
 # 取消映射
-python3 skills/folder-mapper/scripts/map_folder.py unmount <folder_name>
+python3 skills/path-safety/scripts/map_folder.py unmount <folder_name>
 
 # 清理所有映射
-python3 skills/folder-mapper/scripts/map_folder.py clean
+python3 skills/path-safety/scripts/map_folder.py clean
 
 # 添加禁止目录
-python3 skills/folder-mapper/scripts/map_folder.py forbid "/path/to/secure"
+python3 skills/path-safety/scripts/map_folder.py forbid "/path/to/secure"
 
 # 添加敏感目录
-python3 skills/folder-mapper/scripts/map_folder.py sensitive "/path/to/important"
+python3 skills/path-safety/scripts/map_folder.py sensitive "/path/to/important"
 
 # 移除禁止目录
-python3 skills/folder-mapper/scripts/map_folder.py allow "/path/to/secure"
+python3 skills/path-safety/scripts/map_folder.py allow "/path/to/secure"
 
 # 移除敏感目录
-python3 skills/folder-mapper/scripts/map_folder.py desensitive "/path/to/important"
+python3 skills/path-safety/scripts/map_folder.py desensitive "/path/to/important"
 
 # 风险检测（按需触发确认）
-python3 skills/folder-mapper/scripts/map_folder.py guard delete "/path/to/important/file"
+python3 skills/path-safety/scripts/map_folder.py guard delete "/path/to/important/file"
 
 # 查看配置
-python3 skills/folder-mapper/scripts/map_folder.py config
+python3 skills/path-safety/scripts/map_folder.py config
 ```
 
 或者进入脚本目录运行：
 
 ```bash
-cd skills/folder-mapper/scripts
+cd skills/path-safety/scripts
 python3 map_folder.py list
 ```
 
 ### 工作方式说明
 
-`folder-mapper` 当前采用符号链接（symlink）实现目录映射。
+`path-safety` 当前采用符号链接（symlink）实现目录映射。
 
 这意味着：
 
@@ -167,13 +167,13 @@ python3 map_folder.py list
 
 ### 一句话总结
 
-`folder-mapper` 不是为了替代系统挂载，而是为了给 AI Agent 提供一个更可控、更可治理、更适合自动化工作流的外部目录接入层。
+`path-safety` 不是为了替代系统挂载，而是为了给 AI Agent 提供一个更可控、更可治理、更适合自动化工作流的外部目录接入层。
 
 ---
 
 ## English
 
-**folder-mapper** is a controlled directory access tool for AI agents.  
+**path-safety** is a controlled directory access tool for AI agents.  
 It is not meant to replace WSL’s built-in access to paths like `/mnt/c` or `/mnt/d`. Instead, it provides:
 
 - a unified entry point for external directories,
@@ -181,7 +181,7 @@ It is not meant to replace WSL’s built-in access to paths like `/mnt/c` or `/m
 - sensitive path marking and risk checks,
 - and manageable mapping metadata.
 
-In short, the core value of `folder-mapper` is not “making folders accessible,” but making folder access more controllable for AI workflows.
+In short, the core value of `path-safety` is not “making folders accessible,” but making folder access more controllable for AI workflows.
 
 ### What problem does it solve?
 
@@ -192,7 +192,7 @@ When an AI agent works with external directories through raw absolute paths, sev
 - no pre-check before destructive operations,
 - unclear visibility into what has already been mapped.
 
-`folder-mapper` adds a lightweight governance layer:
+`path-safety` adds a lightweight governance layer:
 
 - maps external folders into a unified workspace entry,
 - blocks system directories and drive-root mount points,
@@ -219,7 +219,7 @@ If you only want to access standard Windows drives from WSL, such as:
 - `/mnt/d/...`
 
 then you usually do not need this tool.  
-Those paths are already directly accessible, and `folder-mapper` does not add new low-level access capability.
+Those paths are already directly accessible, and `path-safety` does not add new low-level access capability.
 
 So this tool is better understood as a governance and control layer, not as a generic folder access utility.
 
@@ -237,7 +237,7 @@ So this tool is better understood as a governance and control layer, not as a ge
 ### Installation
 
 ```bash
-npx skills add fivemins/folder-mapper
+npx skills add fivemins/path-safety
 ```
 
 ### Usage
@@ -246,49 +246,49 @@ Examples assume you run commands from the repository root:
 
 ```bash
 # Minimal self-check: verify script path
-python3 skills/folder-mapper/scripts/map_folder.py list
+python3 skills/path-safety/scripts/map_folder.py list
 
 # Map a folder
-python3 skills/folder-mapper/scripts/map_folder.py mount "/path/to/folder"
+python3 skills/path-safety/scripts/map_folder.py mount "/path/to/folder"
 
 # List current mappings
-python3 skills/folder-mapper/scripts/map_folder.py list
+python3 skills/path-safety/scripts/map_folder.py list
 
 # Unmount
-python3 skills/folder-mapper/scripts/map_folder.py unmount <folder_name>
+python3 skills/path-safety/scripts/map_folder.py unmount <folder_name>
 
 # Clean all mappings
-python3 skills/folder-mapper/scripts/map_folder.py clean
+python3 skills/path-safety/scripts/map_folder.py clean
 
 # Add forbidden directory
-python3 skills/folder-mapper/scripts/map_folder.py forbid "/path/to/secure"
+python3 skills/path-safety/scripts/map_folder.py forbid "/path/to/secure"
 
 # Add sensitive directory
-python3 skills/folder-mapper/scripts/map_folder.py sensitive "/path/to/important"
+python3 skills/path-safety/scripts/map_folder.py sensitive "/path/to/important"
 
 # Remove forbidden directory
-python3 skills/folder-mapper/scripts/map_folder.py allow "/path/to/secure"
+python3 skills/path-safety/scripts/map_folder.py allow "/path/to/secure"
 
 # Remove sensitive directory
-python3 skills/folder-mapper/scripts/map_folder.py desensitive "/path/to/important"
+python3 skills/path-safety/scripts/map_folder.py desensitive "/path/to/important"
 
 # Risk check (optional confirmation gate)
-python3 skills/folder-mapper/scripts/map_folder.py guard delete "/path/to/important/file"
+python3 skills/path-safety/scripts/map_folder.py guard delete "/path/to/important/file"
 
 # View configuration
-python3 skills/folder-mapper/scripts/map_folder.py config
+python3 skills/path-safety/scripts/map_folder.py config
 ```
 
 Or run from the script directory:
 
 ```bash
-cd skills/folder-mapper/scripts
+cd skills/path-safety/scripts
 python3 map_folder.py list
 ```
 
 ### How it works
 
-`folder-mapper` currently uses symlinks for mapping.
+`path-safety` currently uses symlinks for mapping.
 
 That means:
 
@@ -334,5 +334,5 @@ So the project should be understood as a **directory access and risk-governance 
 
 ### One-line summary
 
-`folder-mapper` is not a replacement for system mounts.  
+`path-safety` is not a replacement for system mounts.  
 It is a controlled external-directory access layer for AI agents, designed for safer automation, better path governance, and more manageable workflows.

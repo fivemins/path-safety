@@ -1,9 +1,9 @@
 ---
-name: folder-mapper
+name: path-safety
 description: 临时文件夹映射工具（用户可配置）。将外部文件夹映射到工作空间供访问，任务完成后解除映射。支持用户自定义禁止目录和敏感目录。
 ---
 
-# Folder Mapper - 临时文件夹映射（用户可配置版）
+# Path Safety - 临时文件夹映射（用户可配置版）
 
 ## 安全机制
 
