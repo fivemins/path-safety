@@ -383,16 +383,18 @@ def list_mappings() -> dict:
 
 def check_dangerous_operation(path: str, operation: str) -> tuple:
     mappings = load_mappings()
+    normalized_path = str(Path(path).expanduser().resolve())
+    normalized_operation = operation.strip().lower()
     
     for name, info in mappings.items():
         source = info.get("source", "")
         sensitive = info.get("sensitive", False)
         
-        if is_same_or_subpath(path, source):
+        if is_same_or_subpath(normalized_path, source):
             if sensitive:
-                return True, f"⚠️ 敏感目录操作: {operation} {path}\n需要二次确认！"
-            if operation in ["delete", "rm", "rm -r"]:
-                return True, f"⚠️ 删除操作: {path}\n这是映射目录，删除将直接影响原文件！请确认。"
+                return True, f"⚠️ 敏感目录操作: {normalized_operation} {normalized_path}\n需要二次确认！"
+            if normalized_operation in ["delete", "rm", "rm -r"]:
+                return True, f"⚠️ 删除操作: {normalized_path}\n这是映射目录，删除将直接影响原文件！请确认。"
     
     return False, ""
 
@@ -445,10 +447,11 @@ def show_usage():
   python3 map_folder.py allow <路径>     移除禁止目录
   python3 map_folder.py sensitive <路径> 添加敏感目录
   python3 map_folder.py desensitive <路径> 移除敏感目录
+  python3 map_folder.py guard <操作> <路径> 风险检测并执行确认
 
 配置说明:
   - 禁止目录: 绝对不能映射（系统目录自动包含）
-  - 敏感目录: 映射后操作需要二次确认
+  - 敏感目录: 可通过 guard 命令触发风险检测与确认
 """)
 
 
@@ -517,6 +520,28 @@ def main():
             sys.exit(1)
         result = remove_sensitive(sys.argv[2])
         print(result["message"])
+
+    elif command == "guard":
+        if len(sys.argv) < 4:
+            print("用法: python3 map_folder.py guard <操作> <路径>")
+            sys.exit(1)
+
+        operation = sys.argv[2]
+        target_path = sys.argv[3]
+        needs_confirm, warning = check_dangerous_operation(target_path, operation)
+
+        if not needs_confirm:
+            print("✅ 风险检测通过：当前操作无需额外确认")
+            return
+
+        print(warning)
+        user_input = input("请输入 YES 确认继续执行：").strip()
+        if user_input == "YES":
+            print("✅ 已确认，可继续执行")
+            return
+
+        print("❌ 未确认，已取消操作")
+        sys.exit(1)
         
     elif command == "clean":
         result = clean_all()

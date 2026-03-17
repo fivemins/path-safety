@@ -15,7 +15,7 @@
 - 🛡️ 系统目录保护（禁止映射危险目录）
 - 🚫 盘符根目录保护（禁止映射 `/mnt/c`, `/mnt/d` 等所有盘符挂载点）
 - ⚙️ 用户可配置禁止/敏感目录
-- ⚠️ 敏感操作二次确认
+- ⚠️ 提供风险检测接口，调用方可接入二次确认流程
 
 ### 安装
 
@@ -50,6 +50,9 @@ python3 scripts/map_folder.py allow "/path/to/secure"
 # 移除敏感目录
 python3 scripts/map_folder.py desensitive "/path/to/important"
 
+# 风险检测（按需触发确认）
+python3 scripts/map_folder.py guard delete "/path/to/important/file"
+
 # 查看配置
 python3 scripts/map_folder.py config
 ```
@@ -61,7 +64,7 @@ python3 scripts/map_folder.py config
 | 默认禁止 | `/`, `/bin`, `/etc`, `/proc` 等系统目录 |
 | 盘符保护 | `/mnt/a` 到 `/mnt/z` 全部禁止 |
 | 用户禁止 | 自定义绝对不能映射的目录 |
-| 敏感目录 | 需要二次确认的目录 |
+| 敏感目录 | 标记高风险目录，供 guard 检测 |
 | 只读映射 | 默认只读，避免误修改 |
 
 ---
@@ -77,7 +80,7 @@ Temporary folder mapping tool with security features for AI agents.
 - 🛡️ System directory protection - blocks dangerous paths
 - 🚫 Drive root protection - blocks all drive mount points (`/mnt/c`, `/mnt/d`, etc.)
 - ⚙️ User-configurable forbidden and sensitive paths
-- ⚠️ Confirmation prompts for sensitive operations
+- ⚠️ Risk-detection interface for sensitive operations (caller-controlled confirmation flow)
 
 ### Installation
 
@@ -111,6 +114,9 @@ python3 scripts/map_folder.py allow "/path/to/secure"
 
 # Remove sensitive directory
 python3 scripts/map_folder.py desensitive "/path/to/important"
+
+# Risk check (optional confirmation gate)
+python3 scripts/map_folder.py guard delete "/path/to/important/file"
 
 # View configuration
 python3 scripts/map_folder.py config
