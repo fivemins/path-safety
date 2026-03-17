@@ -209,6 +209,14 @@ def is_same_or_subpath(path: str, base: str) -> bool:
         return False
 
 
+def is_sensitive_path(path_str: str, config: dict) -> bool:
+    """根据配置判断路径是否属于敏感目录。"""
+    return any(
+        is_same_or_subpath(path_str, sensitive_path)
+        for sensitive_path in config.get("sensitive_paths", [])
+    )
+
+
 def is_path_allowed(path: str) -> tuple:
     """
     检查路径是否允许映射
@@ -241,7 +249,7 @@ def is_path_allowed(path: str) -> tuple:
             return False, f"用户禁止映射: {forbidden}"
     
     # 检查是否敏感
-    is_sensitive = any(is_same_or_subpath(path_str, s) for s in config.get("sensitive_paths", []))
+    is_sensitive = is_sensitive_path(path_str, config)
     
     return True, "sensitive" if is_sensitive else "ok"
 
@@ -342,6 +350,7 @@ def unmount_folder(link_name: str) -> dict:
 def list_mappings() -> dict:
     ensure_mount_dir()
     mappings = load_mappings()
+    config = load_config()
     has_anomaly = False
     
     # 如果映射文件为空/损坏，尝试从实际符号链接恢复
@@ -354,7 +363,7 @@ def list_mappings() -> dict:
                     mappings[item.name] = {
                         "source": str(target),
                         "link": str(item),
-                        "sensitive": False,
+                        "sensitive": is_sensitive_path(str(target), config),
                     }
         if mappings:
             save_mappings(mappings)

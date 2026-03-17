@@ -118,6 +118,7 @@ python3 scripts/map_folder.py clean
 - 配置和映射元数据存储在 `~/.openclaw/workspace/` 下。
 - 路径判断按“相同路径或子路径”规则匹配，避免字符串前缀误判。
 - 配置/映射文件损坏时自动回退到安全默认值（空配置）。
+- 映射元数据丢失后若从现有符号链接恢复，会按当前 `sensitive_paths` 重新计算并写回 `sensitive` 标记。
 
 ## 触发场景
 

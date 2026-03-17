@@ -78,6 +78,7 @@ python3 map_folder.py list
 - 通过映射路径进行写入、删除、重命名会直接作用于源目录。
 - 建议在高风险操作前先使用 `guard` 做风险检测。
 - 自动化调用建议检查进程退出码：`mount`/`unmount`/`clean` 失败返回非 0（成功为 0）。
+- 当映射元数据丢失并由实际符号链接自动恢复时，工具会按当前 `sensitive_paths` 配置重新计算并保留敏感标记。
 
 ### 常见错误
 
@@ -174,6 +175,7 @@ python3 map_folder.py list
 - Writes, deletes, and renames under mapped paths directly affect the source directory.
 - Run `guard` before high-risk operations when possible.
 - For automation, check process exit codes: `mount`/`unmount`/`clean` return non-zero on failure (zero on success).
+- If mapping metadata is lost and reconstructed from existing symlinks, sensitive flags are recalculated from current `sensitive_paths` and preserved.
 
 ### Common Errors
 
