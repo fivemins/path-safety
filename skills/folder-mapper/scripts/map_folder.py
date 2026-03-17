@@ -5,7 +5,6 @@
 import os
 import sys
 import json
-import stat
 from pathlib import Path
 
 WORKSPACE = Path.home() / ".openclaw" / "workspace"
@@ -35,20 +34,30 @@ DEFAULT_FORBIDDEN = [
 for letter in 'abcdefghijklmnopqrstuvwxyz':
     DEFAULT_FORBIDDEN.append(f"/mnt/{letter}")
 
-# Windows 盘符根目录（检测用）
-WINDOWS_DRIVE_LETTERS = [chr(c) for c in range(ord('A'), ord('Z') + 1)]
+
+def ensure_workspace_files():
+    """确保工作目录存在"""
+    WORKSPACE.mkdir(parents=True, exist_ok=True)
+    MOUNT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_config() -> dict:
     """加载用户配置"""
+    ensure_workspace_files()
     if CONFIG_FILE.exists():
-        with open(CONFIG_FILE, 'r') as f:
-            return json.load(f)
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except (json.JSONDecodeError, OSError):
+            pass
     return {"forbidden_paths": [], "sensitive_paths": []}
 
 
 def save_config(config: dict):
     """保存用户配置"""
+    ensure_workspace_files()
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f, indent=2)
 
@@ -117,19 +126,37 @@ def show_config():
 
 
 def ensure_mount_dir():
-    MOUNT_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_workspace_files()
 
 
 def load_mappings() -> dict:
+    ensure_workspace_files()
     if META_FILE.exists():
-        with open(META_FILE, 'r') as f:
-            return json.load(f)
+        try:
+            with open(META_FILE, 'r') as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except (json.JSONDecodeError, OSError):
+            pass
     return {}
 
 
 def save_mappings(mappings: dict):
+    ensure_workspace_files()
     with open(META_FILE, 'w') as f:
         json.dump(mappings, f, indent=2)
+
+
+def is_same_or_subpath(path: str, base: str) -> bool:
+    """检查 path 是否等于或位于 base 下方"""
+    path_obj = Path(path)
+    base_obj = Path(base)
+    try:
+        path_obj.relative_to(base_obj)
+        return True
+    except ValueError:
+        return False
 
 
 def is_path_allowed(path: str) -> tuple:
@@ -151,23 +178,27 @@ def is_path_allowed(path: str) -> tuple:
     if re.match(r'^[A-Za-z]:\\', path_str):
         # 提取盘符
         drive = path_str[0].upper()
-        root_path = f"/mnt/{drive.lower()}"
         # 检查是否映射到盘符根目录
         if path_str[3:] == '' or path_str[3:] == '\\':
             return False, f"禁止映射盘符根目录: {path_str}"
     
     # 检查默认黑名单
     for forbidden in DEFAULT_FORBIDDEN:
-        if path_str == forbidden or path_str.startswith(forbidden + "/"):
+        # "/" 仅阻止根目录本身；其余目录阻止自身及其子目录
+        if forbidden == "/":
+            if path_str == "/":
+                return False, "禁止映射系统目录: /"
+            continue
+        if is_same_or_subpath(path_str, forbidden):
             return False, f"禁止映射系统目录: {forbidden}"
     
     # 检查用户黑名单
     for forbidden in config.get("forbidden_paths", []):
-        if path_str == forbidden or path_str.startswith(forbidden + "/"):
+        if is_same_or_subpath(path_str, forbidden):
             return False, f"用户禁止映射: {forbidden}"
     
     # 检查是否敏感
-    is_sensitive = any(path_str.startswith(s) for s in config.get("sensitive_paths", []))
+    is_sensitive = any(is_same_or_subpath(path_str, s) for s in config.get("sensitive_paths", []))
     
     return True, "sensitive" if is_sensitive else "ok"
 
@@ -222,7 +253,7 @@ def mount_folder(folder_path: str, read_only: bool = True) -> dict:
             "access_path": f"mnt/{link_name}",
             "source": str(path),
             "warning": sensitive_warning,
-            "message": f"✅ 已映射到 mnt/{link_name} (只读模式){sensitive_warning}\n⚠️ 警告：此为符号链接，删除/修改会直接影响原文件！"
+            "message": f"✅ 已映射到 mnt/{link_name} (安全映射模式){sensitive_warning}\n⚠️ 警告：此为符号链接，删除/修改会直接影响原文件！"
         }
         
     except Exception as e:
@@ -258,12 +289,16 @@ def list_mappings() -> dict:
     mappings = load_mappings()
     active = []
     
+    stale = []
     for name, info in mappings.items():
         link_path = Path(info["link"])
         if link_path.exists():
             active.append({**info, "name": name})
         else:
-            del mappings[name]
+            stale.append(name)
+
+    for name in stale:
+        del mappings[name]
     
     save_mappings(mappings)
     return {"active": active, "count": len(active)}
@@ -276,7 +311,7 @@ def check_dangerous_operation(path: str, operation: str) -> tuple:
         source = info.get("source", "")
         sensitive = info.get("sensitive", False)
         
-        if source in path or path.startswith(source):
+        if is_same_or_subpath(path, source):
             if sensitive:
                 return True, f"⚠️ 敏感目录操作: {operation} {path}\n需要二次确认！"
             if operation in ["delete", "rm", "rm -r"]:
@@ -298,8 +333,8 @@ def clean_all() -> dict:
                 else:
                     import shutil
                     shutil.rmtree(link_path)
-        except:
-            pass
+        except OSError:
+            continue
     
     save_mappings({})
     return {"success": True, "message": "已清理所有映射"}
@@ -310,7 +345,7 @@ def show_usage():
 📁 文件夹映射工具 (用户可配置版)
 
 用法:
-  python3 map_folder.py mount <路径>      映射文件夹（只读）
+  python3 map_folder.py mount <路径>      映射文件夹（安全映射）
   python3 map_folder.py unmount <名称>    取消映射
   python3 map_folder.py list             查看当前映射
   python3 map_folder.py clean            清理所有映射

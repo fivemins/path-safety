@@ -5,7 +5,7 @@ Temporary folder mapping tool with security features for AI agents.
 ## Features
 
 - 🔗 **Mount external folders** into workspace via symlinks
-- 🔒 **Read-only mode** by default
+- 🔒 **Safe mapping mode** by default (with explicit risk warnings)
 - 🛡️ **System directory protection** - blocks `/`, `/bin`, `/etc`, etc.
 - 🚫 **Drive root protection** - blocks all drive mount points (`/mnt/c`, `/mnt/d`, etc.)
 - ⚙️ **User-configurable** forbidden and sensitive paths
