@@ -338,6 +338,7 @@ def classify_path(raw_input: str, config: dict | None = None) -> dict:
         }
 
     path_str = str(path_obj)
+    sensitive = is_sensitive_path(path_str, config)
     forbidden, forbidden_reason = is_forbidden_path(path_str, config)
     if forbidden:
         return {
@@ -345,10 +346,9 @@ def classify_path(raw_input: str, config: dict | None = None) -> dict:
             "reason": forbidden_reason,
             "path": path_obj,
             "path_str": path_str,
-            "is_sensitive": False,
+            "is_sensitive": sensitive,
         }
 
-    sensitive = is_sensitive_path(path_str, config)
     return {
         "allowed": True,
         "reason": "sensitive" if sensitive else "ok",
