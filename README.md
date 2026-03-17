@@ -63,6 +63,7 @@ python3 scripts/map_folder.py config
 - 当前映射基于符号链接，**不是**内核级强制只读挂载。
 - 通过映射路径进行写入、删除、重命名会直接作用于源目录。
 - 建议在高风险操作前先使用 `guard` 做风险检测。
+- 自动化调用建议检查进程退出码：`mount`/`unmount`/`clean` 失败返回非 0（成功为 0）。
 
 ### 安全机制
 
@@ -135,6 +136,7 @@ python3 scripts/map_folder.py config
 - Mapping is implemented via symlinks and is **not** a kernel-enforced read-only mount.
 - Writes, deletes, and renames under mapped paths directly affect the source directory.
 - Run `guard` before high-risk operations when possible.
+- For automation, check process exit codes: `mount`/`unmount`/`clean` return non-zero on failure (zero on success).
 
 ### Security
 

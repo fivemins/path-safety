@@ -466,6 +466,8 @@ def main():
             sys.exit(1)
         result = mount_folder(sys.argv[2])
         print(result.get("message", result.get("error", "")))
+        if not result.get("success", False):
+            sys.exit(1)
         
     elif command == "unmount":
         if len(sys.argv) < 3:
