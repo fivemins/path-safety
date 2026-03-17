@@ -36,7 +36,6 @@ for letter in 'abcdefghijklmnopqrstuvwxyz':
     DEFAULT_FORBIDDEN.append(f"/mnt/{letter}")
 
 WINDOWS_DRIVE_ROOT_RE = re.compile(r'^[A-Za-z]:\\?$')
-WINDOWS_DRIVE_PATH_RE = re.compile(r'^[A-Za-z]:\\')
 SAFE_LINK_NAME_RE = re.compile(r'^[A-Za-z0-9_.-]+$')
 
 
@@ -217,7 +216,7 @@ def is_sensitive_path(path_str: str, config: dict) -> bool:
     )
 
 
-def is_path_allowed(path: str) -> tuple:
+def is_path_allowed(raw_input: str) -> tuple:
     """
     检查路径是否允许映射
     返回: (允许, 原因)
@@ -226,10 +225,10 @@ def is_path_allowed(path: str) -> tuple:
     # 原因：在 Linux 上 resolve() 会把 "C:\\" 等字符串当作普通文件名处理，
     # 变成 "<cwd>/C:\\"，从而丢失“它原本是 Windows 盘符路径”的语义。
     # 因此要先基于原始输入拦截 Windows 盘符根目录，再对普通路径做规范化与黑名单检查。
-    if WINDOWS_DRIVE_ROOT_RE.match(path):
-        return False, f"禁止映射盘符根目录: {path}"
+    if WINDOWS_DRIVE_ROOT_RE.match(raw_input):
+        return False, f"禁止映射盘符根目录: {raw_input}", None
 
-    p = Path(path).expanduser().resolve()
+    p = Path(raw_input).expanduser().resolve()
     config = load_config()
     path_str = str(p)
     
@@ -238,20 +237,20 @@ def is_path_allowed(path: str) -> tuple:
         # "/" 仅阻止根目录本身；其余目录阻止自身及其子目录
         if forbidden == "/":
             if path_str == "/":
-                return False, "禁止映射系统目录: /"
+                return False, "禁止映射系统目录: /", p
             continue
         if is_same_or_subpath(path_str, forbidden):
-            return False, f"禁止映射系统目录: {forbidden}"
+            return False, f"禁止映射系统目录: {forbidden}", p
     
     # 检查用户黑名单
     for forbidden in config.get("forbidden_paths", []):
         if is_same_or_subpath(path_str, forbidden):
-            return False, f"用户禁止映射: {forbidden}"
+            return False, f"用户禁止映射: {forbidden}", p
     
     # 检查是否敏感
     is_sensitive = is_sensitive_path(path_str, config)
     
-    return True, "sensitive" if is_sensitive else "ok"
+    return True, "sensitive" if is_sensitive else "ok", p
 
 
 def get_unique_name(folder_path: Path) -> str:
@@ -266,17 +265,18 @@ def get_unique_name(folder_path: Path) -> str:
 
 
 def mount_folder(folder_path: str) -> dict:
-    path = Path(folder_path).expanduser().resolve()
-    
+    raw_input = folder_path
+    allowed, reason, path = is_path_allowed(raw_input)
+    if not allowed:
+        return {"success": False, "error": reason}
+
+    assert path is not None
+
     if not path.exists():
         return {"success": False, "error": f"文件夹不存在: {path}"}
     
     if not path.is_dir():
         return {"success": False, "error": f"不是有效文件夹: {path}"}
-    
-    allowed, reason = is_path_allowed(str(path))
-    if not allowed:
-        return {"success": False, "error": reason}
     
     sensitive_warning = ""
     if reason == "sensitive":
