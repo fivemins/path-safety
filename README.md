@@ -74,6 +74,7 @@ python3 scripts/map_folder.py config
 | 用户禁止 | 自定义绝对不能映射的目录 |
 | 敏感目录 | 标记高风险目录，供 guard 检测 |
 | 安全映射（非强制只读） | 使用符号链接映射，避免复制；不提供内核级只读保证 |
+| 跨平台路径规范化差异 | 不同 OS 对 `resolve()` 与路径分隔符的处理不同；会先按原始输入识别 Windows 盘符根目录，再做规范化和黑名单判断，避免语义丢失 |
 
 ---
 
@@ -146,6 +147,7 @@ python3 scripts/map_folder.py config
 | Drive root protection | `/mnt/a` to `/mnt/z` all blocked |
 | User configurable | Custom forbidden/sensitive paths |
 | Safe mapping (not enforced read-only) | Uses symlink mapping without kernel-enforced read-only guarantees |
+| Cross-OS normalization differences | `resolve()` and path separator handling differ by OS; Windows drive-root patterns are checked on raw input before normalization and blacklist checks |
 
 ### License
 

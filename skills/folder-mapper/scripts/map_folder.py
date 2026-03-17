@@ -205,19 +205,16 @@ def is_path_allowed(path: str) -> tuple:
     检查路径是否允许映射
     返回: (允许, 原因)
     """
+    # 先检查用户输入的原始字符串，而不是 resolve() 后的规范化路径。
+    # 原因：在 Linux 上 resolve() 会把 "C:\\" 等字符串当作普通文件名处理，
+    # 变成 "<cwd>/C:\\"，从而丢失“它原本是 Windows 盘符路径”的语义。
+    # 因此要先基于原始输入拦截 Windows 盘符根目录，再对普通路径做规范化与黑名单检查。
+    if WINDOWS_DRIVE_ROOT_RE.match(path):
+        return False, f"禁止映射盘符根目录: {path}"
+
     p = Path(path).expanduser().resolve()
     config = load_config()
     path_str = str(p)
-    
-    # 检测 Windows 风格路径：C:\, D:\ 等
-    if WINDOWS_DRIVE_ROOT_RE.match(path_str):
-        return False, f"禁止映射盘符根目录: {path_str}"
-    
-    # 检查 Windows 盘符下的根目录（如 C:\Users, D:\Program Files）
-    if WINDOWS_DRIVE_PATH_RE.match(path_str):
-        # 检查是否映射到盘符根目录
-        if path_str[3:] == '' or path_str[3:] == '\\':
-            return False, f"禁止映射盘符根目录: {path_str}"
     
     # 检查默认黑名单
     for forbidden in DEFAULT_FORBIDDEN:
