@@ -545,10 +545,9 @@ def main():
         
     elif command == "clean":
         result = clean_all()
-        print(result["message"])
+        print(result.get("message", result.get("error", "")))
         for warning in result.get("warnings", []):
             print(f"⚠️ {warning}")
-        print(result.get("message", result.get("error", "")))
         if not result.get("success", False):
             sys.exit(1)
         
