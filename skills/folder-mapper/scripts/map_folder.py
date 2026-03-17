@@ -40,6 +40,15 @@ WINDOWS_DRIVE_PATH_RE = re.compile(r'^[A-Za-z]:\\')
 SAFE_LINK_NAME_RE = re.compile(r'^[A-Za-z0-9_.-]+$')
 
 
+def format_error_response(message: str, exc: Exception | None = None) -> dict:
+    """统一错误返回结构，保留简洁提示并附带可诊断字段。"""
+    response = {"success": False, "error": message}
+    if exc is not None:
+        response["error_type"] = type(exc).__name__
+        response["error_detail"] = str(exc)
+    return response
+
+
 def validate_link_name(link_name: str) -> tuple[bool, str]:
     """统一校验映射名，避免路径穿越和非法字符。"""
     if not link_name:
@@ -289,8 +298,12 @@ def mount_folder(folder_path: str) -> dict:
             "message": f"✅ 已映射到 mnt/{link_name} (安全映射（非强制只读）){sensitive_warning}\n⚠️ 警告：此为符号链接，删除/修改会直接影响原文件！"
         }
         
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+    except FileNotFoundError as e:
+        return format_error_response("映射失败：路径不存在", e)
+    except PermissionError as e:
+        return format_error_response("映射失败：权限不足", e)
+    except OSError as e:
+        return format_error_response("映射失败：系统错误", e)
 
 
 def unmount_folder(link_name: str) -> dict:
@@ -318,8 +331,12 @@ def unmount_folder(link_name: str) -> dict:
             save_mappings(mappings)
         
         return {"success": True, "message": f"✅ 已解除映射: {link_name}"}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+    except FileNotFoundError as e:
+        return format_error_response("解除映射失败：映射路径不存在", e)
+    except PermissionError as e:
+        return format_error_response("解除映射失败：权限不足", e)
+    except OSError as e:
+        return format_error_response("解除映射失败：系统错误", e)
 
 
 def list_mappings() -> dict:

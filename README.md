@@ -79,6 +79,14 @@ python3 map_folder.py list
 - 建议在高风险操作前先使用 `guard` 做风险检测。
 - 自动化调用建议检查进程退出码：`mount`/`unmount`/`clean` 失败返回非 0（成功为 0）。
 
+### 常见错误
+
+| 场景 | 典型提示 | 说明 |
+|------|----------|------|
+| 权限不足 | `映射失败：权限不足` / `解除映射失败：权限不足` | 当前用户无权创建/删除符号链接或访问目标目录。 |
+| 路径不存在 | `文件夹不存在: ...` / `映射失败：路径不存在` | 目标目录已删除、路径输入错误，或并发操作导致路径失效。 |
+| 映射名非法 | `非法映射名: ...` | `unmount` 入参包含非法字符、路径分隔符，或包含 `..`。 |
+
 ### 安全机制
 
 | 机制 | 说明 |
@@ -166,6 +174,14 @@ python3 map_folder.py list
 - Writes, deletes, and renames under mapped paths directly affect the source directory.
 - Run `guard` before high-risk operations when possible.
 - For automation, check process exit codes: `mount`/`unmount`/`clean` return non-zero on failure (zero on success).
+
+### Common Errors
+
+| Scenario | Typical message | Description |
+|----------|-----------------|-------------|
+| Permission denied | `映射失败：权限不足` / `解除映射失败：权限不足` | The current user cannot create/remove symlinks or access the target directory. |
+| Path not found | `文件夹不存在: ...` / `映射失败：路径不存在` | The target directory was removed, the path is mistyped, or concurrent operations made it unavailable. |
+| Invalid mapping name | `非法映射名: ...` | The `unmount` name contains invalid characters, path separators, or `..`. |
 
 ### Security
 
