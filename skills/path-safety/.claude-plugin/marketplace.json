@@ -1,5 +1,5 @@
 {
-    "name": "folder-mapper",
+    "name": "path-safety",
     "owner": {
         "name": "fivemins",
         "email": ""
@@ -10,9 +10,9 @@
     },
     "plugins": [
         {
-            "name": "folder-mapper",
+            "name": "path-safety",
             "description": "Map external folders to workspace temporarily with security protection. Supports user-configurable forbidden/sensitive paths.",
-            "source": "./skills/folder-mapper"
+            "source": "./skills/path-safety"
         }
     ]
 }
