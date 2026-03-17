@@ -80,6 +80,12 @@ python3 map_folder.py list
 - 自动化调用建议检查进程退出码：`mount`/`unmount`/`clean` 失败返回非 0（成功为 0）。
 - 当映射元数据丢失并由实际符号链接自动恢复时，工具会按当前 `sensitive_paths` 配置重新计算并保留敏感标记。
 
+### 兼容性
+
+- 当前脚本依赖 `fcntl` 文件锁，仅支持类 Unix 环境（Linux/macOS/WSL）。
+- 在原生 Windows（非 WSL）上无法直接运行，因为标准库缺少 `fcntl` 模块。
+- 建议在 WSL 中运行；若需原生 Windows 支持，可后续引入跨平台锁实现替代 `fcntl`。
+
 ### 常见错误
 
 | 场景 | 典型提示 | 说明 |
@@ -177,6 +183,12 @@ python3 map_folder.py list
 - Run `guard` before high-risk operations when possible.
 - For automation, check process exit codes: `mount`/`unmount`/`clean` return non-zero on failure (zero on success).
 - If mapping metadata is lost and reconstructed from existing symlinks, sensitive flags are recalculated from current `sensitive_paths` and preserved.
+
+### Compatibility
+
+- The script currently depends on `fcntl`-based file locking, so it is supported only on Unix-like environments (Linux/macOS/WSL).
+- It cannot run directly on native Windows (without WSL) because the Python standard library there does not provide `fcntl`.
+- Recommended path: run in WSL; for native Windows support, introduce a cross-platform lock implementation in a future update.
 
 ### Common Errors
 
