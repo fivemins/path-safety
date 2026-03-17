@@ -37,6 +37,35 @@ for letter in 'abcdefghijklmnopqrstuvwxyz':
 
 WINDOWS_DRIVE_ROOT_RE = re.compile(r'^[A-Za-z]:\\?$')
 WINDOWS_DRIVE_PATH_RE = re.compile(r'^[A-Za-z]:\\')
+SAFE_LINK_NAME_RE = re.compile(r'^[A-Za-z0-9_.-]+$')
+
+
+def validate_link_name(link_name: str) -> tuple[bool, str]:
+    """统一校验映射名，避免路径穿越和非法字符。"""
+    if not link_name:
+        return False, "映射名不能为空"
+
+    if not SAFE_LINK_NAME_RE.match(link_name):
+        return False, "映射名仅允许字母、数字、下划线(_)、连字符(-)、点(.)"
+
+    if link_name in {'.', '..'} or '..' in link_name:
+        return False, "映射名不能包含 '..'"
+
+    if '/' in link_name or '\\' in link_name:
+        return False, "映射名不能包含路径分隔符"
+
+    return True, "ok"
+
+
+def is_within_mount_dir(path: Path) -> bool:
+    """检查路径是否位于 MOUNT_DIR 目录下（按条目自身路径，不跟随最终符号链接目标）。"""
+    mount_root = MOUNT_DIR.resolve()
+    candidate = path.parent.resolve() / path.name
+    try:
+        candidate.relative_to(mount_root)
+        return True
+    except ValueError:
+        return False
 
 
 def ensure_workspace_files():
@@ -270,7 +299,13 @@ def mount_folder(folder_path: str, read_only: bool = True) -> dict:
 
 def unmount_folder(link_name: str) -> dict:
     ensure_mount_dir()
+    valid, reason = validate_link_name(link_name)
+    if not valid:
+        return {"success": False, "error": f"非法映射名: {reason}"}
+
     link_path = MOUNT_DIR / link_name
+    if not is_within_mount_dir(link_path):
+        return {"success": False, "error": "非法映射路径: 仅允许操作 mnt 目录内的直接子项"}
     
     if not link_path.exists():
         return {"success": False, "error": f"映射不存在: {link_name}"}
@@ -347,9 +382,19 @@ def check_dangerous_operation(path: str, operation: str) -> tuple:
 def clean_all() -> dict:
     ensure_mount_dir()
     mappings = load_mappings()
-    
+
+    safe_entries = []
     for name in list(mappings.keys()):
+        valid, reason = validate_link_name(name)
+        if not valid:
+            return {"success": False, "error": f"发现非法映射名 '{name}': {reason}"}
+
         link_path = MOUNT_DIR / name
+        if not is_within_mount_dir(link_path):
+            return {"success": False, "error": f"发现越界映射路径，已停止清理: {name}"}
+        safe_entries.append((name, link_path))
+    
+    for name, link_path in safe_entries:
         try:
             if link_path.exists():
                 if link_path.is_symlink():
@@ -403,8 +448,14 @@ def main():
         if len(sys.argv) < 3:
             print("用法: python3 map_folder.py unmount <映射名>")
             sys.exit(1)
+        valid, reason = validate_link_name(sys.argv[2])
+        if not valid:
+            print(f"非法映射名: {reason}")
+            sys.exit(1)
         result = unmount_folder(sys.argv[2])
         print(result.get("message", result.get("error", "")))
+        if not result.get("success", False):
+            sys.exit(1)
         
     elif command == "list":
         result = list_mappings()
@@ -445,7 +496,9 @@ def main():
         
     elif command == "clean":
         result = clean_all()
-        print(result["message"])
+        print(result.get("message", result.get("error", "")))
+        if not result.get("success", False):
+            sys.exit(1)
         
     else:
         show_usage()
