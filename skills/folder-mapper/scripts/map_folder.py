@@ -551,8 +551,11 @@ def check_dangerous_operation(path: str, operation: str) -> tuple:
 def clean_all() -> dict:
     ensure_mount_dir()
     mappings = load_mappings()
-    
+
     warnings = []
+    deleted_entries: list[str] = []
+    skipped_entries: list[dict] = []
+    failed_entries: list[dict] = []
 
     safe_entries = []
     for name in list(mappings.keys()):
@@ -570,16 +573,45 @@ def clean_all() -> dict:
             if link_path.exists():
                 if link_path.is_symlink():
                     link_path.unlink()
+                    deleted_entries.append(name)
                 else:
+                    skipped_entries.append({"name": name, "path": str(link_path), "reason": "non_symlink"})
                     warnings.append(f"跳过异常条目(非符号链接): {link_path}")
-        except OSError:
-            continue
-    
-    _update_json_locked(META_FILE, {}, lambda _: {})
+            else:
+                deleted_entries.append(name)
+        except OSError as e:
+            failed_entries.append({"name": name, "path": str(link_path), "error": f"{type(e).__name__}: {e}"})
+            warnings.append(f"删除失败: {name} ({type(e).__name__}: {e})")
+
+    has_residual = bool(skipped_entries or failed_entries)
+    if has_residual:
+        remaining_names = {entry["name"] for entry in skipped_entries}
+        remaining_names.update(entry["name"] for entry in failed_entries)
+
+        def _keep_remaining(current: dict):
+            return {k: v for k, v in current.items() if k in remaining_names}
+
+        _update_json_locked(META_FILE, {}, _keep_remaining)
+    else:
+        _update_json_locked(META_FILE, {}, lambda _: {})
+
     message = "已清理所有映射"
-    if warnings:
+    if has_residual:
+        message = (
+            f"已完成清理，但存在残留条目: 跳过 {len(skipped_entries)} 个，失败 {len(failed_entries)} 个。"
+            "\n元数据已按清理结果保留未删除项，请人工确认。"
+        )
+    elif warnings:
         message += "\n发现异常挂载条目，请人工确认"
-    return {"success": True, "message": message, "warnings": warnings}
+
+    return {
+        "success": True,
+        "message": message,
+        "warnings": warnings,
+        "deleted": deleted_entries,
+        "skipped": skipped_entries,
+        "failed": failed_entries,
+    }
 
 
 def show_usage():
